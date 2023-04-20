@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+      .group:hover .group-hover\:visible {
+        visibility: visible;
+      }
+    </style>
+    <title>Team GitHub Merged PR Metrics</title>
+  </head>
+  <body class="bg-gray-100">
+    <nav class="bg-white shadow-md py-6">
+      <div class="container mx-auto px-6">
+        <div class="flex justify-between items-center">
+          <a href="#" class="text-3xl font-semibold text-gray-800">Merged PR Metrics</a>
+          <ul class="flex space-x-6">
+            <li><a href="#" class="text-gray-800 font-semibold">Home</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <div class="container mx-auto px-4 py-8">
+      <form method="POST" action="/" class="mb-4">
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label for="startDate" class="block text-sm font-medium text-gray-700">Start Date</label>
+            <input type="text" value="<%= startDate %>" id="startDate" name="startDate" class="flatpickr-date form-input block w-full mt-2 border-gray-300 rounded-md shadow-sm">
+          </div>
+          <div>
+            <label for="endDate" class="block text-sm font-medium text-gray-700">End Date</label>
+            <input type="text" value="<%= endDate %>" id="endDate" name="endDate" class="flatpickr-date form-input block w-full mt-2 border-gray-300 rounded-md shadow-sm">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-6 mt-6">
+          <div>
+            <label for="team-select" class="block text-sm font-medium text-gray-700">Team</label>
+            <select id="team-select" name="team" class="form-input block w-full mt-2 border-gray-300 rounded-md shadow-sm">
+              <option value="">Select a team</option>
+              <% for (const teamName of teams) { %>
+                <option value="<%= teamName %>" <%= team === teamName ? 'selected' : '' %>><%= teamName %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition ease-in-out duration-150">Submit</button>
+      </form>
+
+      <% if (!startDate || !endDate) { %>
+        <div class="bg-white shadow-md rounded-lg p-6">
+          <p class="text-gray-700">Please select a start and end date to view the metrics.</p>
+        </div>
+      <% } else { %>
+        <div class="bg-white shadow-md rounded-lg p-6">
+          <table class="table-auto w-full">
+            <thead>
+              <tr>
+                <th class="border-b border-gray-200 text-left px-4 py-2">Team Name</th>
+                <th class="border-b border-gray-200 text-left px-4 py-2"># of Team Members</th>
+                <th class="border-b border-gray-200 text-left px-4 py-2">Total PRs</th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average Cycle Time
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average time taken from the creation of a pull request to its merge.
+                  </div>
+                </th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average Pickup Time
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average time taken from the creation of a pull request to its first code review submission.
+                  </div>
+                </th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average Review Time
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average time taken from the first code review submission to the merge of a pull request.
+                  </div>
+                </th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average Time to Merge
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average time taken from the first approval to the merge of a pull request.
+                  </div>
+                </th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average # of Lines Changed
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average number of lines of code added and deleted in a pull request.
+                  </div>
+                </th>
+                <th class="border-b border-gray-200 text-left px-4 py-2 relative group">
+                  Average # of Changed Files
+                  <div class="invisible absolute bg-gray-700 text-white text-xs rounded-md p-2 -bottom-8 left-0 group-hover:visible">
+                    The average number of files changed in a pull request.
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="bg-white">
+                <td class="border-t border-gray-200 px-4 py-2"><%= teamStats.teamName %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= teamStats.teamMembers.length %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= teamStats.metrics.totalPRs %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= formatDuration(teamStats.metrics.avgCycleTime) %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= formatDuration(teamStats.metrics.avgPickupTime) %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= formatDuration(teamStats.metrics.avgReviewTime) %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= formatDuration(teamStats.metrics.avgApprovalToMergeTime) %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= teamStats.metrics.avgSize.toFixed(2) %></td>
+                <td class="border-t border-gray-200 px-4 py-2"><%= teamStats.metrics.avgFiles.toFixed(2) %></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Cycle Time</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="cycleTime"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Pickup Time</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="pickupTime"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Review Time</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="reviewTime"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Time to Merge</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="timeToMerge"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Lines of Code</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="linesOfCode"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Changed Files</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="changedFiles"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Comment Count</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="commentCount"></canvas>
+              </div>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-4">Review Count</h2>
+              <div class="bg-white shadow-md rounded-lg p-6">
+                <canvas id="reviewCount"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      flatpickr(".flatpickr-date", {
+        dateFormat: "Y-m-d"
+      });
+
+
+      const teamStats = <%- JSON.stringify(teamStats) %> ;
+      const prs = teamStats.pullRequests;
+
+      function initChart(chartId, label, data) {
+        const ctx = document.getElementById(chartId).getContext("2d");
+        return new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: prs.map((pr) => pr.url),
+            datasets: [
+              {
+                label,
+                data,
+                backgroundColor: "rgba(75, 192, 192, 0.2)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+              x: {
+                display: false,
+              }
+          },  
+          y: {
+              },
+              onClick: function (evt) {
+                const activePoints = this.getElementsAtEventForMode(evt, "nearest", {
+                  intersect: true,
+                });
+                if (activePoints.length > 0) {
+                  const clickedElementIndex = activePoints[0].index;
+                  const pr = prs[clickedElementIndex];
+                  window.open(pr.url, "_blank");
+                }
+              },
+            },
+          });
+      }
+      const convertToHours = (value) => (value / 60 / 60);
+
+      const cycleTime = teamStats.pullRequests.map((pr) => convertToHours(pr.cycleTime));
+      const pickupTime = teamStats.pullRequests.map((pr) => convertToHours(pr.pickupTime));
+      const reviewTime = teamStats.pullRequests.map((pr) => convertToHours(pr.reviewTime));
+      const timeToMerge = teamStats.pullRequests.map((pr) => convertToHours(pr.approvalToMergeTime));
+      const linesOfCode = teamStats.pullRequests.map((pr) => pr.size.total.toFixed(2));
+      const changedFiles = teamStats.pullRequests.map((pr) => pr.size.changedFiles.toFixed(2));
+      const commentCount = teamStats.pullRequests.map((pr) => pr.commentCount);
+      const reviewCount = teamStats.pullRequests.map((pr) => pr.reviewCount);
+
+      initChart("cycleTime", "Cycle Time (hours)", cycleTime);
+      initChart("pickupTime", "Pickup Time (hours)", pickupTime);
+      initChart("reviewTime", "Review Time (hours)", reviewTime);
+      initChart("timeToMerge", "Time to Merge (hours)", timeToMerge);
+      initChart("linesOfCode", "Lines of Code", linesOfCode);
+      initChart("changedFiles", "# Changed Files", changedFiles);
+      initChart("commentCount", "# PR Comments", commentCount);
+      initChart("reviewCount", "# Review Comments", reviewCount);
+    </script>
+  </body>
+</html>
